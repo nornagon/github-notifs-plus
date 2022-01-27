@@ -1,3 +1,4 @@
+const accessToken = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 function rgbToHsl(r, g, b) {
   r /= 255, g /= 255, b /= 255;
 
@@ -28,6 +29,7 @@ async function getIssueData(repo, id) {
   if (cache.has(key)) {
     return cache.get(key)
   }
+  // TODO: remove this; all data should be fetched via GraphQL now.
   const resp = await fetch(`https://api.github.com/repos/${repo}/issues/${id}`)
   if (!resp.ok) {
     cache.set(key, null)
@@ -68,10 +70,78 @@ async function annotateIssue(li) {
     labelContainer.appendChild(a)
   }
 }
-setInterval(() => {
+let once = false
+setInterval(async () => {
   const query = document.querySelectorAll('li.notifications-list-item:not(.gh-notifs-plus-watched)')
+  const lis = []
+  const issuesToQuery = new Map
   for (const li of query) {
     li.classList.add('gh-notifs-plus-watched')
+    const id = li.querySelector('span.text-normal.color-fg-muted')?.textContent.trim().substr(1)
+    if (!id) continue
+    lis.push(li)
+    const repo = li.querySelector('.f6').firstChild.textContent.trim()
+    if (cache.has(`${repo}#${id}`)) continue
+    if (!issuesToQuery.has(repo)) issuesToQuery.set(repo, new Set)
+    issuesToQuery.get(repo).add(id)
+  }
+  if (issuesToQuery.size) {
+    const gql = `
+      {
+        ${[...issuesToQuery.entries()].map(([repo, issues], i) => {
+          const [owner, name] = repo.split('/')
+          return `
+            repo${i}: repository(owner: "${owner}", name: "${name}") {
+              nameWithOwner
+              ${[...issues].map((issue, i) => {
+                return `issue${i}: issueOrPullRequest(number: ${issue}) { ... on Issue { ...IssueFragment } ... on PullRequest { ...PRFragment } }`
+              })}
+            }
+          `
+        })}
+      }
+
+      fragment IssueFragment on Issue {
+        number
+        labels(first: 100) {
+          nodes {
+            name
+            color
+            description
+            url
+          }
+        }
+      }
+      fragment PRFragment on PullRequest {
+        number
+        labels(first: 100) {
+          nodes {
+            name
+            color
+            description
+            url
+          }
+        }
+      }
+    `
+    const result = await fetch('https://api.github.com/graphql', {
+      headers: {Authorization: `Bearer ${accessToken}`},
+      method: 'POST',
+      body: JSON.stringify({
+        query: gql
+      })
+    }).then(j => j.json())
+    for (const repoData of Object.values(result.data)) {
+      const repo = repoData.nameWithOwner
+      for (const issueData of Object.values(repoData)) {
+        if (typeof issueData === 'string') continue
+        const { number, labels } = issueData
+        cache.set(`${repo}#${number}`, { labels: labels.nodes })
+      }
+    }
+  }
+
+  for (const li of lis) {
     annotateIssue(li)
   }
 }, 1000)
