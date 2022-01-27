@@ -1,0 +1,12 @@
+{
+  "name": "GitHub Notifications Plus",
+  "description": "Make the GitHub notifications UI more pleasant",
+  "version": "1.0",
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/notifications*"],
+      "js": ["content-script.js"]
+    }
+  ],
+  "manifest_version": 3
+}
