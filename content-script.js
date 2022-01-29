@@ -27,7 +27,7 @@ const notificationRepoAndID = () => {
 
     if (!repo || !id) {
       console.warn('parse notification item dom failed');
-     continue;
+      continue;
     }
 
     const isDiscussion = !!item.querySelector('a.notification-list-item-link svg.octicon-comment-discussion');
@@ -51,13 +51,13 @@ const notificationRepoAndID = () => {
 
   return result;
 }
- 
+
 /**
-* repository GraphQL
+* Form a GraphQL query for the given notifications
 * @param {NotificationInfo} data
 * @returns {Promise<null | NotificationLabel>}
 */
-const repositoryGraphQL = (data) => {
+const repositoryGraphQL = async (data) => {
   const gql = `
     {
       ${Object.entries(data).map(([repo, info], index) => {
@@ -98,7 +98,7 @@ const repositoryGraphQL = (data) => {
     }
   `;
 
-  return fetch('https://api.github.com/graphql', {
+  const resp = await fetch('https://api.github.com/graphql', {
     headers: {
       Authorization: `Bearer ${accessToken}`
     },
@@ -106,52 +106,49 @@ const repositoryGraphQL = (data) => {
     body: JSON.stringify({
       query: gql
     })
-  })
-  .then(resp => {
-    if (!resp.ok) {
-      return null;
-    }
+  });
 
-    return resp.json();
-  })
-  .then(({ data }) => {
-    const result = {};
+  if (!resp.ok) {
+    return null;
+  }
 
-    for (const repoData of Object.values(data)) {
-      const repo = repoData.nameWithOwner;
+  const reposData = (await resp.json()).data;
+  const result = {};
 
-      for (const issueData of Object.values(repoData)) {
-        if (typeof issueData === 'string') {
-          continue;
-        }
+  for (const repoData of Object.values(reposData)) {
+    const repo = repoData.nameWithOwner;
 
-        const { number, labels } = issueData;
+    for (const issueData of Object.values(repoData)) {
+      if (typeof issueData === 'string') {
+        continue;
+      }
 
-        if (labels.nodes.length === 0) {
-          continue;
-        }
+      const { number, labels } = issueData;
 
-        const info = {
-          id: number,
-          labels: labels.nodes
-        }
+      if (labels.nodes.length === 0) {
+        continue;
+      }
 
-        if (typeof result[repo] === 'undefined') {
-          result[repo] = [info];
-        } else {
-      result[repo].push(info);
-        }
+      const info = {
+        id: number,
+        labels: labels.nodes
+      }
+
+      if (typeof result[repo] === 'undefined') {
+        result[repo] = [info];
+      } else {
+        result[repo].push(info);
       }
     }
+  }
 
-    return result;
-  });
+  return result;
 }
 
 /**
 * parse label color
 * @param {[number, number, number, number, number, number]} color - Issues/PR label color
-* @returns {[number, number, number, number, number, number]}
+* @returns {r: number, g: number, b: number, h: number, s: number, l: number]}
 */
 const parseColor = (() => {
   return (color) => {
@@ -159,7 +156,7 @@ const parseColor = (() => {
     const g = +('0x' + color[2] + color[3]);
     const b = +('0x' + color[4] + color[5]);
 
-    return [r, g, b, ...rgbToHsl(r, g, b)];
+    return { r, g, b, ...rgbToHsl(r, g, b) };
   }
 
   function rgbToHsl(r, g, b) {
@@ -183,7 +180,7 @@ const parseColor = (() => {
       h /= 6;
     }
 
-    return [ h, s, l ];
+    return { h, s, l };
   }
 })();
 
@@ -207,7 +204,7 @@ const annotateIssue = (notificationInfo, notificationLabel) => {
     parent.children[1].after(labelContainer);
 
     for (const label of labels) {
-      const [ r, g, b, h, s, l ] = parseColor(label.color);
+      const { r, g, b, h, s, l } = parseColor(label.color);
       const a = document.createElement('a');
       a.href = `/${repo}/labels/${encodeURIComponent(label.name)}`;
       a.target = '_blank';
