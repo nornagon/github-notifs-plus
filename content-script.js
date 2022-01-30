@@ -1,5 +1,5 @@
 /**
- * @typedef {Object.<string, Array<{ id: number, notificationsItemDOM: Array<Element> }>>} NotificationInfo
+ * @typedef {Object.<string, Array<{ id: number, notificationsItemDOM: Element }>>} NotificationInfo
  */
 
 /**
@@ -14,7 +14,7 @@ const accessToken = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
  * @returns {null | NotificationInfo}
  */
 const notificationRepoAndID = () => {
-  const notificationsItems = document.querySelectorAll('li.notifications-list-item');
+  const notificationsItems = document.querySelectorAll('li.notifications-list-item:not(.gh-notifs-plus-watched)');
 
   if (notificationsItems.length === 0) {
     return null;
@@ -217,6 +217,8 @@ const annotateIssue = (notificationInfo, notificationLabel) => {
         repoInfo => repoInfo.id === id,
       ).notificationsItemDOM;
 
+      liDOM.classList.add("gh-notifs-plus-watched");
+
       injectLabel(repo, liDOM, labels);
     }
   });
@@ -259,7 +261,58 @@ const annotateIssue = (notificationInfo, notificationLabel) => {
   }
 };
 
-(async () => {
+class TaskQueue {
+  constructor () {
+    this.queue = [];
+    this.isHanding = false;
+  }
+
+  append(cb) {
+    return new Promise((resolve, reject) => {
+      const taskNode = {
+        handler: cb,
+        resolve: resolve,
+        reject: reject,
+      };
+
+      this.queue.push(taskNode);
+
+      if (!this.isHanding) {
+        this.startHandingTasksLoop();
+      }
+    });
+  }
+
+  async startHandingTasksLoop() {
+    try {
+      this.isHanding = true;
+
+      // We only need the last one, the previous tasks can be ignored
+      if (this.queue.length > 1) {
+        this.queue = [this.queue[this.queue.length - 1]];
+      }
+
+      while(this.queue.length > 0) {
+        const taskNode = this.queue[0];
+        try {
+          taskNode.resolve(await taskNode.handler());
+        } catch (error) {
+          taskNode.reject(error);
+        } finally {
+          this.queue.shift();
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      this.isHanding = false;
+    }
+  }
+}
+
+const taskQueue = new TaskQueue();
+
+const execute = async () => {
   const notificationData = notificationRepoAndID();
 
   if (notificationData === null) {
@@ -273,4 +326,18 @@ const annotateIssue = (notificationInfo, notificationLabel) => {
   }
 
   annotateIssue(notificationData, repositoryGraphQLResult);
-})();
+};
+
+const observe = new MutationObserver(() => {
+  // MutationObserver triggers can be very frequent
+  // Without the use of queues, a lot of problems may arise when the UI is displayed
+  // Adds a queue to execute tasks sequentially and will discard other tasks that are not the last.
+  // Just like: Debounce function
+  taskQueue.append(execute);
+});
+
+observe.observe(document.querySelector("div.js-check-all-container"), {
+  childList: true,
+  attributes: true,
+  subtree: true,
+});
