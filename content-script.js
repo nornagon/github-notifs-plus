@@ -289,12 +289,8 @@ class TaskQueue {
     try {
       this.isHanding = true;
 
-      // We only need the last one, the previous tasks can be ignored
-      if (this.queue.length > 1) {
-        this.queue = [this.queue[this.queue.length - 1]];
-      }
-
       while(this.queue.length > 0) {
+        this.removeMiddleTask()
         const taskNode = this.queue[0];
         try {
           taskNode.resolve(await taskNode.handler());
@@ -308,6 +304,13 @@ class TaskQueue {
       console.error(error);
     } finally {
       this.isHanding = false;
+    }
+  }
+
+  // We only need the last one, the previous tasks can be ignored
+  removeMiddleTask() {
+    if (this.queue.length > 1) {
+      this.queue = [this.queue[this.queue.length - 1]];
     }
   }
 }
