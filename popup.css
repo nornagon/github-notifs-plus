@@ -1,0 +1,68 @@
+body {
+  width: 500px;
+  height: 120px;
+  padding: 0 10px;
+}
+
+.header {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #052e54;
+}
+
+.body {
+  margin: 10px 0;
+  display: flex;
+  flex-flow: column wrap;
+  align-items: center;
+}
+
+.body > input {
+  width: 450px;
+  height: 40px;
+  outline-style: none;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 7px 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.body > input.failed {
+  border: 2px solid red;
+}
+
+.body > input.success {
+  border: 2px solid green;
+}
+
+.footer {
+  text-align: center;
+}
+
+.footer > button {
+  width: 80px;
+  height: 30px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 2px;
+}
+
+.footer > button:first-of-type {
+  margin-right: 100px;
+  color: #052e54;
+  border: none;
+  background: #d8d8d8;
+}
+
+.footer > button:last-of-type {
+  color: #fff;
+  border: none;
+  background: #126fd6;
+}
+
+.footer > button:last-of-type.disable {
+  cursor: not-allowed;
+}
+
