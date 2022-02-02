@@ -134,6 +134,7 @@ const repositoryGraphQL = async (data, accessToken) => {
   const result = {};
 
   for (const repoData of Object.values(reposData)) {
+    if (!repoData) continue;
     const repo = repoData.nameWithOwner;
 
     for (const issueData of Object.values(repoData)) {
