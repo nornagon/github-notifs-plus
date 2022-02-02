@@ -255,6 +255,8 @@ const annotateIssue = (notificationInfo, notificationLabel) => {
           beetle: '🪲',
           leftwards_arrow_with_hook: '↩️',
           sparkles: '✨',
+          boom: '💥',
+          checkered_flag: '🏁',
         }[p1] ?? match
       );
     });
