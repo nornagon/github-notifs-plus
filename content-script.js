@@ -6,11 +6,10 @@
  * @typedef {Object.<string, Array<{ id: number, labels: Array<{ color: string, description: string, name: string, url: string }> }>>} NotificationLabel
  */
 
-const accessToken = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 
 /**
  * query repo and id in /notifications page
- * 
+ *
  * @returns {null | NotificationInfo}
  */
 const notificationRepoAndID = () => {
@@ -67,9 +66,10 @@ const notificationRepoAndID = () => {
 /**
  * Form a GraphQL query for the given notifications
  * @param {NotificationInfo} data
+ * @param {string} accessToken - github access token
  * @returns {Promise<null | NotificationLabel>}
  */
-const repositoryGraphQL = async data => {
+const repositoryGraphQL = async (data, accessToken) => {
   const gql = `
      {
        ${Object.entries(data).map(([repo, info], index) => {
@@ -121,6 +121,12 @@ const repositoryGraphQL = async data => {
   });
 
   if (!resp.ok) {
+    if (resp.status === 401) {
+      chrome.storage.sync.set({
+        status: 'failed',
+      });
+    }
+
     return null;
   }
 
@@ -263,6 +269,20 @@ const annotateIssue = (notificationInfo, notificationLabel) => {
   }
 };
 
+/**
+ * get github access token by chrome.storage.sync
+ * @return {Promise<null|string>}
+ */
+const getAccessToken = async () => {
+  const chromeStorage = await chrome.storage.sync.get();
+
+  if (!chromeStorage?.accessToken) {
+    return null;
+  }
+
+  return chromeStorage.accessToken;
+}
+
 class TaskQueue {
   constructor () {
     this.queue = [];
@@ -315,13 +335,15 @@ class TaskQueue {
 const taskQueue = new TaskQueue();
 
 const execute = async () => {
+  const accessToken = await getAccessToken();
+
   const notificationData = notificationRepoAndID();
 
   if (notificationData === null) {
     return;
   }
 
-  const repositoryGraphQLResult = await repositoryGraphQL(notificationData);
+  const repositoryGraphQLResult = await repositoryGraphQL(notificationData, accessToken);
 
   if (repositoryGraphQLResult === null) {
     return;
