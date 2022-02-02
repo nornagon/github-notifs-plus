@@ -217,7 +217,7 @@ const annotateIssue = (notificationInfo, notificationLabel) => {
         repoInfo => repoInfo.id === id,
       ).notificationsItemDOM;
 
-      liDOM.classList.add("gh-notifs-plus-watched");
+      liDOM.classList.add('gh-notifs-plus-watched');
 
       injectLabel(repo, liDOM, labels);
     }
@@ -338,7 +338,7 @@ const observe = new MutationObserver(() => {
   taskQueue.append(execute);
 });
 
-observe.observe(document.querySelector("div.js-check-all-container"), {
+observe.observe(document.querySelector('div.js-check-all-container'), {
   childList: true,
   attributes: true,
   subtree: true,
