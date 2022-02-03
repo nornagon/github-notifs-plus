@@ -1,0 +1,14 @@
+## IDE
+.idea
+.vscode
+
+## Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+## macOS
+.DS_Store
